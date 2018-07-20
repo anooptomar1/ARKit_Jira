@@ -10,6 +10,7 @@ import UIKit
 import SceneKit
 import ARKit
 
+// State of the view
 enum State: String {
     case details = "Details"
     case description = "Description"
@@ -17,21 +18,20 @@ enum State: String {
 }
 
 class ViewController: UIViewController, ARSCNViewDelegate {
-
     @IBOutlet var sceneView: ARSCNView!
-    
+    // State of the buttons
     var currentState: State = .details
-    
+    // Sticky note color
     let stickyColor: UIColor = UIColor(red: 1, green: 40 / 255, blue: 85 / 255, alpha: 0.75)
-    
+    // Real size of the sticky note
     var size: CGSize!
-    
+    // Node attached to the sticky note
     var planeNode: SCNNode!
-    
+    // Buttons
     var detailsButton: SCNNode!
     var descriptionButton: SCNNode!
     var timeButton: SCNNode!
-    
+    // Custom views
     var detailsNode: SCNNode! = SCNNode()
     var descriptionNode: SCNNode! = SCNNode()
     var timeNode: SCNNode! = SCNNode()
@@ -49,6 +49,8 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         sceneView.scene = SCNScene()
     }
     
+    // MARK: Private Helpers
+    // Create a label
     private func createLabelView(forState state: State) -> UILabel {
         let frame = CGRect(origin: .zero, size: CGSize(width: 200, height: 100))
         let label = UILabel(frame: frame)
@@ -64,6 +66,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         return label
     }
     
+    // Create the SceneKit SCNNode that will act as our button
     private func createButtonNode(forState state: State) -> SCNNode {
         let buttonView = SCNBox(width: 0.02, height: 0.0001, length: 0.01, chamferRadius: 0)
         buttonView.firstMaterial?.diffuse.contents = createLabelView(forState: state)
@@ -72,6 +75,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         return buttonNode
     }
     
+    // Create the details button
     func createDetailsButton() {
         if let node = detailsButton {
             node.removeFromParentNode()
@@ -82,6 +86,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         planeNode.addChildNode(detailsButton)
     }
     
+    // Create the description button
     func createDescriptionButton() {
         if let node = descriptionButton {
             node.removeFromParentNode()
@@ -92,6 +97,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         planeNode.addChildNode(descriptionButton)
     }
     
+    // Create the time buttton
     func createTimeButton() {
         if let node = timeButton {
             node.removeFromParentNode()
@@ -103,6 +109,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         planeNode.addChildNode(timeButton)
     }
     
+    // In viewWillAppear prepare the images we want to track
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         
@@ -126,6 +133,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         sceneView.session.pause()
     }
     
+    // Once we have found an Image give it a ARImageAnchor to attach the SCNNodes to
     func renderer(_ renderer: SCNSceneRenderer, nodeFor anchor: ARAnchor) -> SCNNode? {
         let node = SCNNode()
         if let imageAnchor = anchor as? ARImageAnchor {
@@ -142,6 +150,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         return node
     }
     
+    // Used for when the use interacts with the buttons
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first else {
             return
@@ -163,6 +172,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         }
     }
     
+    // Handles updating the current view and button
     func update() {
         switch currentState {
         case .details: showDetails()
@@ -174,18 +184,21 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         createDetailsButton()
     }
     
+    // Shows the details view
     func showDetails() {
         createDetailsViewNode()
         descriptionNode.removeFromParentNode()
         timeNode.removeFromParentNode()
     }
     
+    // Shows the description view
     func showDescription() {
         createDescriptionViewNode()
         detailsNode.removeFromParentNode()
         timeNode.removeFromParentNode()
     }
     
+    // Shows the time view
     func showTime() {
         createTimeTrackingViewNode()
         detailsNode.removeFromParentNode()
