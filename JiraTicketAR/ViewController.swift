@@ -10,9 +10,31 @@ import UIKit
 import SceneKit
 import ARKit
 
+enum State: String {
+    case details = "Details"
+    case description = "Description"
+    case time = "Time"
+}
+
 class ViewController: UIViewController, ARSCNViewDelegate {
 
     @IBOutlet var sceneView: ARSCNView!
+    
+    var currentState: State = .details
+    
+    let stickyColor: UIColor = UIColor(red: 1, green: 40 / 255, blue: 85 / 255, alpha: 0.75)
+    
+    var size: CGSize!
+    
+    var planeNode: SCNNode!
+    
+    var detailsButton: SCNNode!
+    var descriptionButton: SCNNode!
+    var timeButton: SCNNode!
+    
+    var detailsNode: SCNNode! = SCNNode()
+    var descriptionNode: SCNNode! = SCNNode()
+    var timeNode: SCNNode! = SCNNode()
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -25,6 +47,60 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
         // Set the scene to the view
         sceneView.scene = SCNScene()
+    }
+    
+    private func createLabelView(forState state: State) -> UILabel {
+        let frame = CGRect(origin: .zero, size: CGSize(width: 200, height: 100))
+        let label = UILabel(frame: frame)
+        
+        label.text = state.rawValue
+        label.textAlignment = .center
+        label.layer.borderColor = currentState == state ? UIColor.black.cgColor : stickyColor.cgColor
+        label.textColor = currentState == state ? .black : stickyColor
+        label.layer.borderWidth = 4
+        label.layer.cornerRadius = 8
+        label.font = UIFont.boldSystemFont(ofSize: 32)
+        label.backgroundColor = currentState == state ? stickyColor : .black
+        return label
+    }
+    
+    private func createButtonNode(forState state: State) -> SCNNode {
+        let buttonView = SCNBox(width: 0.02, height: 0.0001, length: 0.01, chamferRadius: 0)
+        buttonView.firstMaterial?.diffuse.contents = createLabelView(forState: state)
+        let buttonNode = SCNNode(geometry: buttonView)
+        buttonNode.eulerAngles.x = -.pi / 2
+        return buttonNode
+    }
+    
+    func createDetailsButton() {
+        if let node = detailsButton {
+            node.removeFromParentNode()
+        }
+        detailsButton = createButtonNode(forState: .details)
+        detailsButton.position.y = -0.0475
+        detailsButton.position.x = -0.0275
+        planeNode.addChildNode(detailsButton)
+    }
+    
+    func createDescriptionButton() {
+        if let node = descriptionButton {
+            node.removeFromParentNode()
+        }
+        descriptionButton = createButtonNode(forState: .description)
+        descriptionButton.position.y = -0.0475
+        descriptionButton.eulerAngles.x = -.pi / 2
+        planeNode.addChildNode(descriptionButton)
+    }
+    
+    func createTimeButton() {
+        if let node = timeButton {
+            node.removeFromParentNode()
+        }
+        timeButton = createButtonNode(forState: .time)
+        timeButton.eulerAngles.x = -.pi / 2
+        timeButton.position.y = -0.0475
+        timeButton.position.x = 0.0275
+        planeNode.addChildNode(timeButton)
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -55,13 +131,167 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         if let imageAnchor = anchor as? ARImageAnchor {
             let plane = SCNPlane(width: imageAnchor.referenceImage.physicalSize.width,
                                  height: imageAnchor.referenceImage.physicalSize.height)
-            plane.firstMaterial?.diffuse.contents = UIColor(red: 1, green: 0, blue: 0, alpha: 0.25)
-            
-            let planeNode = SCNNode(geometry: plane)
+            size = imageAnchor.referenceImage.physicalSize
+            plane.firstMaterial?.diffuse.contents = UIColor.clear
+            planeNode = SCNNode(geometry: plane)
             planeNode.eulerAngles.x = -.pi / 2
+            update()
             
             node.addChildNode(planeNode)
         }
         return node
+    }
+    
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard let touch = touches.first else {
+            return
+        }
+        if touch.view == sceneView {
+            let touchLocation: CGPoint = touch.location(in: sceneView)
+            guard let result = sceneView.hitTest(touchLocation, options: nil).first else {
+                return
+            }
+            let node = result.node
+            
+            switch node {
+            case detailsButton: currentState = .details
+            case descriptionButton: currentState = .description
+            case timeButton: currentState = .time
+            default: print("Not a button!")
+            }
+            update()
+        }
+    }
+    
+    func update() {
+        switch currentState {
+        case .details: showDetails()
+        case .description: showDescription()
+        case .time: showTime()
+        }
+        createDescriptionButton()
+        createTimeButton()
+        createDetailsButton()
+    }
+    
+    func showDetails() {
+        createDetailsViewNode()
+        descriptionNode.removeFromParentNode()
+        timeNode.removeFromParentNode()
+    }
+    
+    func showDescription() {
+        createDescriptionViewNode()
+        detailsNode.removeFromParentNode()
+        timeNode.removeFromParentNode()
+    }
+    
+    func showTime() {
+        createTimeTrackingViewNode()
+        detailsNode.removeFromParentNode()
+        descriptionNode.removeFromParentNode()
+    }
+}
+// MARK: Static Views
+extension ViewController {
+    fileprivate func createDetailsViewNode() {
+        if let node = detailsNode {
+            node.removeFromParentNode()
+        }
+        let frame = CGRect(origin: .zero, size: CGSize(width: 500, height: 500))
+        let textView = UITextView(frame: frame)
+        
+        textView.backgroundColor = stickyColor
+        textView.font = UIFont.boldSystemFont(ofSize: 30)
+        textView.text =
+        """
+        \tType: BUG
+        \tPriority: Highest
+        \tStatus: DEV-ACTIVE
+        \tFlags: None
+        
+        Assignee: Zach
+        Reporter: Dehn
+        
+        Affects Version/s: None
+        Component/s: iOS
+        Labels: None
+        Budget: MPP
+        Fix Version/s: RB2_D6
+        """
+        let boxView = SCNBox(width: size.width, height: 0.0001, length: size.height, chamferRadius: 0)
+        boxView.firstMaterial?.diffuse.contents = textView
+        detailsNode = SCNNode(geometry: boxView)
+        detailsNode.eulerAngles.x = -.pi / 2
+        detailsNode.position.y = Float(-size.height - 0.015)
+        
+        planeNode.addChildNode(detailsNode)
+    }
+    
+    fileprivate func createDescriptionViewNode() {
+        if let node = descriptionNode {
+            node.removeFromParentNode()
+        }
+        // Create a UITextView
+        let frame = CGRect(origin: .zero, size: CGSize(width: 500, height: 500))
+        let textView = UITextView(frame: frame)
+        
+        textView.backgroundColor = stickyColor
+        textView.font = UIFont.boldSystemFont(ofSize: 30)
+        textView.isScrollEnabled = true
+        textView.text =
+        """
+        QA Note: Attempted to replicate with 1.2.0 (64) and 1.2.0 (63) in QA Environment and was unable to reproduce.
+        
+        ALM Priority: Blocker
+        
+        iOS ONLY
+        iPhone 7+;iPhone X
+        
+        Expected:
+        When selecting "Contact" on the Login screen the Contact page displays. (also from the Main Menu)
+        
+        Actual:
+        When selecting "Contact" on the Login screen the App crashes.
+        
+        Steps to recreate:
+        launch app
+        Select Contact
+        confirm app crashes
+        
+        **Note: i was successfully able to log in. The app only crashes when you select "Contact"
+        
+        """
+        let boxView = SCNBox(width: size.width, height: 0.0001, length: size.height, chamferRadius: 0)
+        boxView.firstMaterial?.diffuse.contents = textView
+        descriptionNode = SCNNode(geometry: boxView)
+        descriptionNode.eulerAngles.x = -.pi / 2
+        descriptionNode.position.y = Float(-size.height - 0.015)
+        
+        planeNode.addChildNode(descriptionNode)
+    }
+    
+    fileprivate func createTimeTrackingViewNode() {
+        if let node = timeNode {
+            node.removeFromParentNode()
+        }
+        let frame = CGRect(origin: .zero, size: CGSize(width: 500, height: 500))
+        let textView = UITextView(frame: frame)
+        
+        textView.backgroundColor = stickyColor
+        textView.font = UIFont.boldSystemFont(ofSize: 30)
+        textView.text =
+        """
+        Estimated Time: 16 hours
+        Remaining Time: 10 hours
+        Logged Time: 6 hours
+        """
+        let boxView = SCNBox(width: size.width, height: 0.0001, length: size.height, chamferRadius: 0)
+        boxView.firstMaterial?.diffuse.contents = textView
+        timeNode = SCNNode(geometry: boxView)
+        timeNode.eulerAngles.x = -.pi / 2
+        timeNode.position.y = Float(-size.height - 0.015)
+        
+        planeNode.addChildNode(timeNode)
     }
 }
